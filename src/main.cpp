@@ -74,19 +74,51 @@ void autonomous() {}
  * task, not resume it from where it left off.
  */
 void opcontrol() {
-	pros::Controller master(pros::E_CONTROLLER_MASTER);
-	pros::Motor left_mtr(1);
-	pros::Motor right_mtr(2);
+	enum ports{motorfrp=1,motorflp=2,motorbrp=10,motorblp=20};
+	pros::Controller C1(pros::E_CONTROLLER_MASTER);
+	pros::Motor Mbr(motorbrp,1);
+	pros::Motor Mbl(motorblp);
+	pros::Motor Mfr(motorfrp,1);
+	pros::Motor Mfl(motorflp);
+	while(true){
+		int LX = C1.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_X);
+		int LY = C1.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
+		if(C1.get_digital(pros::E_CONTROLLER_DIGITAL_B)){
+			Mbr.move(127);
+			Mbl.move(127);
+			Mfr.move(127);
+			Mfl.move(127);
+		}
+		else if(LX or LY){
+			Mbr.move(LY-LX);
+			Mbl.move(LY+LX);
+			Mfr.move(LY-LX);
+			Mfl.move(LY+LX);
+		}
+		else{
+			Mbr.move(0);
+			Mbl.move(0);
+			Mfr.move(0);
+			Mfl.move(0);
+		}
 
-	while (true) {
-		pros::lcd::print(0, "%d %d %d", (pros::lcd::read_buttons() & LCD_BTN_LEFT) >> 2,
-		                 (pros::lcd::read_buttons() & LCD_BTN_CENTER) >> 1,
-		                 (pros::lcd::read_buttons() & LCD_BTN_RIGHT) >> 0);
-		int left = master.get_analog(ANALOG_LEFT_Y);
-		int right = master.get_analog(ANALOG_RIGHT_Y);
-
-		left_mtr = left;
-		right_mtr = right;
-		pros::delay(20);
+		pros::delay(2);
 	}
+	// pros::Controller master(pros::E_CONTROLLER_MASTER);
+	// pros::Motor fleft_mtr(1);
+	// pros::Motor fright_mtr(2);
+	// pros::Motor bleft_mtr(3);
+	// pros::Motor bright_mtr(4);
+
+	// while (true) {
+	// 	pros::lcd::print(0, "%d %d %d", (pros::lcd::read_buttons() & LCD_BTN_LEFT) >> 2,
+	// 	                 (pros::lcd::read_buttons() & LCD_BTN_CENTER) >> 1,
+	// 	                 (pros::lcd::read_buttons() & LCD_BTN_RIGHT) >> 0);
+	// 	int left = master.get_analog(ANALOG_LEFT_Y);
+	// 	int right = master.get_analog(ANALOG_RIGHT_Y);
+
+	// 	left_mtr = left;
+	// 	right_mtr = right;
+	// 	pros::delay(20);
+	// }
 }
