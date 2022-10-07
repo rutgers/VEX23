@@ -1,19 +1,9 @@
 #include "main.h"
+#include "okapi/api.hpp"
+using namespace okapi;
 
-/**
- * A callback function for LLEMU's center button.
- *
- * When this callback is fired, it will toggle line 2 of the LCD text between
- * "I was pressed!" and nothing.
- */
 void on_center_button() {
-	static bool pressed = false;
-	pressed = !pressed;
-	if (pressed) {
-		pros::lcd::set_text(2, "I was pressed!");
-	} else {
-		pros::lcd::clear_line(2);
-	}
+
 }
 
 /**
@@ -58,7 +48,31 @@ void competition_initialize() {}
  * will be stopped. Re-enabling the robot will restart the task, not re-start it
  * from where it left off.
  */
-void autonomous() {}
+void autonomous() {
+std::shared_ptr<OdomChassisController> chassis =
+	ChassisControllerBuilder()
+    	.withMotors(
+        	{1, 10}, // Left motors are 1 & 2
+        	{-2, -20}    // Right motors are 3 & 4 (reversed)
+    	)
+		.withGains(
+        	{0.001, 0, 0.0001}, // distance controller gains
+        	{0.001, 0, 0.0001}, // turn controller gains
+        	{0.001, 0, 0.0001}  // angle controller gains (helps drive straight)
+    	)
+    	.withSensors(
+        	ADIEncoder{'A', 'B'}, // left encoder in ADI ports A & B
+        	ADIEncoder{'C', 'D'},  // right encoder in ADI ports C & D 
+        	ADIEncoder{'E', 'F'}  // middle encoder in ADI ports E & F
+		)
+		.withDimensions(AbstractMotor::gearset::green,{{2.75_in, 2.75_in, 5.5_in, 2.75_in}, quadEncoderTPR})
+    	.buildOdometry();
+
+
+chassis->setState(f
+
+
+}
 
 /**
  * Runs the operator control code. This function will be started in its own task
@@ -74,19 +88,70 @@ void autonomous() {}
  * task, not resume it from where it left off.
  */
 void opcontrol() {
-	pros::Controller master(pros::E_CONTROLLER_MASTER);
-	pros::Motor left_mtr(1);
-	pros::Motor right_mtr(2);
+    // Chassis Controller - lets us drive the robot around with open- or closed-loop control
+std::shared_ptr<ChassisController> drive =
+	ChassisControllerBuilder()
+    	.withMotors(
+        	{1, 10}, // Left motors are 1 & 2 (reversed)
+        	{-2, -20}    // Right motors are 3 & 4
+    	)
+		.withDimensions(AbstractMotor::gearset::green, {{3.25_in, 11.5_in}, imev5GreenTPR})
+		.build();
+			
+		Controller controller;
 
-	while (true) {
-		pros::lcd::print(0, "%d %d %d", (pros::lcd::read_buttons() & LCD_BTN_LEFT) >> 2,
-		                 (pros::lcd::read_buttons() & LCD_BTN_CENTER) >> 1,
-		                 (pros::lcd::read_buttons() & LCD_BTN_RIGHT) >> 0);
-		int left = master.get_analog(ANALOG_LEFT_Y);
-		int right = master.get_analog(ANALOG_RIGHT_Y);
+		while (true){
+        drive->getModel()->tank(controller.getAnalog(ControllerAnalog::leftY),
+                                controller.getAnalog(ControllerAnalog::rightY));			
+			pros::delay(10);
+		}
 
-		left_mtr = left;
-		right_mtr = right;
-		pros::delay(20);
-	}
+    // int speed = 100;
+    // pros::Controller master(pros::E_CONTROLLER_MASTER);
+    // pros::Motor leftBack_mtr(1,pros::E_MOTOR_GEAR_GREEN,0,pros:: E_MOTOR_ENCODER_ROTATIONS);
+    // pros::Motor rightBack_mtr(2,pros::E_MOTOR_GEAR_GREEN,1,pros:: E_MOTOR_ENCODER_ROTATIONS);
+    // pros::Motor leftFront_mtr(10,pros::E_MOTOR_GEAR_GREEN,0,pros:: E_MOTOR_ENCODER_ROTATIONS);
+    // pros::Motor rightFront_mtr(20,pros::E_MOTOR_GEAR_GREEN,1,pros:: E_MOTOR_ENCODER_ROTATIONS);
+
+    // while (true) {
+    //     pros::lcd::print(0, "%d %d %d", (pros::lcd::read_buttons() & LCD_BTN_LEFT) >> 2,
+    //                      (pros::lcd::read_buttons() & LCD_BTN_CENTER) >> 1,
+    //                      (pros::lcd::read_buttons() & LCD_BTN_RIGHT) >> 0);
+    //     int left = (master.get_analog(ANALOG_LEFT_Y)/127)*speed;
+    //     int right = (master.get_analog(ANALOG_RIGHT_Y)/127)*speed;
+
+    //     leftBack_mtr = left;
+    //     rightBack_mtr = right;
+    //     leftFront_mtr = left;
+    //     rightFront_mtr = right;
+    //     pros::delay(20);
+
+	// 	//speed increase and decrease
+	// 	if(master.get_digital(DIGITAL_UP) && speed != 125 ){
+    //     speed = speed+5;
+	// 	}
+	// 	if(master.get_digital(DIGITAL_DOWN) && speed != 0){
+	// 		speed = speed-5;
+	// 	}
+
+	// 	//move 5 feet
+	// 	if(master.get_digital(DIGITAL_LEFT)){
+		
+	// 		double distanceTraveled = leftBack_mtr.get_position() * 18 * (2*3.14*3.25);
+		
+	// 		while(distanceTraveled < 60){
+	// 		distanceTraveled = leftBack_mtr.get_position() * 18 * (2*3.14*3.25);
+	// 		leftBack_mtr = 100;
+	// 		rightBack_mtr = 100;
+	// 		leftFront_mtr = 100;
+	// 		rightFront_mtr = 100;
+	// 		master.print(0,0,std::to_string.c_str(distanceTraveled));
+	// 		}
+
+	// 		leftBack_mtr = 0;
+	// 		rightBack_mtr = 0;
+	// 		leftFront_mtr = 0;
+	// 		rightFront_mtr = 0;
+	// 	}
+    // }
 }
