@@ -58,7 +58,33 @@ void competition_initialize() {}
  * will be stopped. Re-enabling the robot will restart the task, not re-start it
  * from where it left off.
  */
-void autonomous() {}
+void autonomous() {
+	enum ports{motorfrp=1,motorflp=2,motorbrp=10,motorblp=20};
+	pros::Motor Mbr(motorbrp,1);
+	pros::Motor Mbl(motorblp);
+	pros::Motor Mfr(motorfrp,1);
+	pros::Motor Mfl(motorflp);
+
+	double inpertick = .0113446401;
+	double fttick = inpertick/12;
+	fttick = ((1/fttick) *5);
+	
+	Mbr.tare_position();
+	Mbl.tare_position();
+	Mfr.tare_position();
+	Mfl.tare_position();
+
+	Mbr.move_absolute(fttick,100);
+	Mbl.move_absolute(fttick,100);
+	Mfr.move_absolute(fttick,100);
+	Mfl.move_absolute(fttick,100);
+
+	pros::delay(200000);
+
+	//while(!((Mbr.get_position() < (5288 + 5)) && (Mbr.get_position() > (5288 - 5)))){
+	//	pros::delay(2);
+	//}
+}
 
 /**
  * Runs the operator control code. This function will be started in its own task
