@@ -59,12 +59,25 @@ void competition_initialize() {}
  * from where it left off.
  */
 void autonomous() {
+	/** green wheels are 2.75in diameter
+	white 3.25in diameter
+	*/
 	enum ports{motorfrp=1,motorflp=2,motorbrp=10,motorblp=20};
+	char sforwardbot = 'C';
+	char sforwardtop = 'D';
+	pros::Controller C1(pros::E_CONTROLLER_MASTER);
+	pros::ADIEncoder forwardsensor (sforwardtop,sforwardbot,true);
 	pros::Motor Mbr(motorbrp,1);
 	pros::Motor Mbl(motorblp);
 	pros::Motor Mfr(motorfrp,1);
 	pros::Motor Mfl(motorflp);
 
+	/** green wheels are 2.75in diameter
+	for green: 500.03589393235480037932935110492 tick/ft
+	0.00199985643457683597355839567223 ft/tick
+	*/
+
+	/**
 	double inpertick = .0113446401;
 	double fttick = inpertick/12;
 	fttick = ((1/fttick) *5);
@@ -74,12 +87,30 @@ void autonomous() {
 	Mfr.tare_position();
 	Mfl.tare_position();
 
+	
 	Mbr.move_absolute(fttick,100);
 	Mbl.move_absolute(fttick,100);
 	Mfr.move_absolute(fttick,100);
 	Mfl.move_absolute(fttick,100);
 
 	pros::delay(200000);
+	*/
+	double sensortickval = forwardsensor.get_value();
+	C1.print(0,0,"s: %f",sensortickval);
+	while (sensortickval < 2500.1794696617740018966467555246){
+		Mbr.move(30);
+		Mbl.move(30);
+		Mfr.move(30);
+		Mfl.move(30);
+		sensortickval = forwardsensor.get_value();
+		C1.print(0,0,"s: %f",sensortickval);
+		pros::delay(2);
+	}
+	C1.print(0,0,"s: %f",sensortickval);
+	Mbr.move(0);
+	Mbl.move(0);
+	Mfr.move(0);
+	Mfl.move(0);
 
 	//while(!((Mbr.get_position() < (5288 + 5)) && (Mbr.get_position() > (5288 - 5)))){
 	//	pros::delay(2);
