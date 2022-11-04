@@ -1,6 +1,34 @@
 #include "main.h"
 
 /**
+pros make to build without upload
+pros mu to build and upload
+
+Motor 1 = front right red gear motor
+Motor 2 = front right green gear motor. is inverted
+
+Motor 11 = back right red motor
+Motor 3 = back right green motor. is inverted
+
+motor 10 = front left red motor. is inverted
+motor 9 = front left green motor
+
+motor 20 = back left red motor. is inverted
+motor 8 = back left green motor
+
+motor 12 = right elevator motor
+motor 19 = left elevator motor. is inverted
+
+motor 13 = right lift motor
+motor 14 left lift motor. is inverted
+*/
+std::shared_ptr<okapi::MotorGroup> rallm; //motor group for all right motors
+std::shared_ptr<okapi::MotorGroup> lallm; //motor group for all left motors
+
+std::shared_ptr<okapi::MotorGroup> gele; //motor group for elevator motors
+std::shared_ptr<okapi::MotorGroup> glift; //motor group for lift motors
+
+/**
  * A callback function for LLEMU's center button.
  *
  * When this callback is fired, it will toggle line 2 of the LCD text between
@@ -27,6 +55,26 @@ void initialize() {
 	pros::lcd::set_text(1, "Hello PROS User!");
 
 	pros::lcd::register_btn1_cb(on_center_button);
+
+	okapi::Motor frredm (1,false,okapi::AbstractMotor::gearset::green,okapi::AbstractMotor::encoderUnits::rotations);
+	okapi::Motor frgrem (2,true,okapi::AbstractMotor::gearset::green,okapi::AbstractMotor::encoderUnits::rotations);
+	okapi::Motor brredm (11,false,okapi::AbstractMotor::gearset::green,okapi::AbstractMotor::encoderUnits::rotations);
+	okapi::Motor brgrem (3,true,okapi::AbstractMotor::gearset::green,okapi::AbstractMotor::encoderUnits::rotations);
+	rallm.reset(new okapi::MotorGroup({frredm, frgrem, brredm, brgrem}));
+
+	okapi::Motor flredm (10,true,okapi::AbstractMotor::gearset::green,okapi::AbstractMotor::encoderUnits::rotations);
+	okapi::Motor flgrem (9,false,okapi::AbstractMotor::gearset::green,okapi::AbstractMotor::encoderUnits::rotations);
+	okapi::Motor blredm (20,true,okapi::AbstractMotor::gearset::green,okapi::AbstractMotor::encoderUnits::rotations);
+	okapi::Motor blgrem (8,false,okapi::AbstractMotor::gearset::green,okapi::AbstractMotor::encoderUnits::rotations);
+	lallm.reset(new okapi::MotorGroup({flredm, flgrem, blredm, blgrem}));
+
+	okapi::Motor rele (12,false,okapi::AbstractMotor::gearset::green,okapi::AbstractMotor::encoderUnits::rotations);
+	okapi::Motor lele (19,true,okapi::AbstractMotor::gearset::green,okapi::AbstractMotor::encoderUnits::rotations);
+	gele.reset(new okapi::MotorGroup({rele, lele}));
+
+	okapi::Motor rlift (13,false,okapi::AbstractMotor::gearset::green,okapi::AbstractMotor::encoderUnits::rotations);
+	okapi::Motor llift (14,true,okapi::AbstractMotor::gearset::green,okapi::AbstractMotor::encoderUnits::rotations);
+	glift.reset(new okapi::MotorGroup({rlift, llift}));
 }
 
 /**
@@ -131,7 +179,14 @@ void autonomous() {
  * task, not resume it from where it left off.
  */
 void opcontrol() {
-	enum ports{motorfrp=1,motorflp=2,motorbrp=10,motorblp=20};
+
+	//rallm -> moveVoltage(1000);
+	//lallm -> moveVoltage(1000);
+
+	gele -> moveVoltage(5000);
+
+	pros::delay(300);
+/**	enum ports{motorfrp=1,motorflp=2,motorbrp=10,motorblp=20};
 	pros::Controller C1(pros::E_CONTROLLER_MASTER);
 	pros::Motor Mbr(motorbrp,1);
 	pros::Motor Mbl(motorblp);
@@ -161,21 +216,5 @@ void opcontrol() {
 
 		pros::delay(2);
 	}
-	// pros::Controller master(pros::E_CONTROLLER_MASTER);
-	// pros::Motor fleft_mtr(1);
-	// pros::Motor fright_mtr(2);
-	// pros::Motor bleft_mtr(3);
-	// pros::Motor bright_mtr(4);
-
-	// while (true) {
-	// 	pros::lcd::print(0, "%d %d %d", (pros::lcd::read_buttons() & LCD_BTN_LEFT) >> 2,
-	// 	                 (pros::lcd::read_buttons() & LCD_BTN_CENTER) >> 1,
-	// 	                 (pros::lcd::read_buttons() & LCD_BTN_RIGHT) >> 0);
-	// 	int left = master.get_analog(ANALOG_LEFT_Y);
-	// 	int right = master.get_analog(ANALOG_RIGHT_Y);
-
-	// 	left_mtr = left;
-	// 	right_mtr = right;
-	// 	pros::delay(20);
-	// }
+*/
 }
