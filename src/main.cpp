@@ -110,22 +110,28 @@ void autonomous() {
 	/** green wheels are 2.75in diameter
 	white 3.25in diameter
 	*/
+
+	gele -> moveVoltage(5000);
+
+	pros::delay(300);
+	/* old code for moving bot forward
 	enum ports{motorfrp=1,motorflp=2,motorbrp=10,motorblp=20};
 	char sforwardbot = 'C';
 	char sforwardtop = 'D';
-	pros::Controller C1(pros::E_CONTROLLER_MASTER);
+
 	pros::ADIEncoder forwardsensor (sforwardtop,sforwardbot,true);
 	pros::Motor Mbr(motorbrp,1);
 	pros::Motor Mbl(motorblp);
 	pros::Motor Mfr(motorfrp,1);
 	pros::Motor Mfl(motorflp);
+	*/
 
 	/** green wheels are 2.75in diameter
 	for green: 500.03589393235480037932935110492 tick/ft
 	0.00199985643457683597355839567223 ft/tick
 	*/
 
-	/**
+	/** old code for moving absolute
 	double inpertick = .0113446401;
 	double fttick = inpertick/12;
 	fttick = ((1/fttick) *5);
@@ -143,6 +149,8 @@ void autonomous() {
 
 	pros::delay(200000);
 	*/
+
+	/* code for moving bot forward with sensory
 	double sensortickval = forwardsensor.get_value();
 	C1.print(0,0,"s: %f",sensortickval);
 	while (sensortickval < 2500.1794696617740018966467555246){
@@ -159,7 +167,7 @@ void autonomous() {
 	Mbl.move(0);
 	Mfr.move(0);
 	Mfl.move(0);
-
+	*/
 	//while(!((Mbr.get_position() < (5288 + 5)) && (Mbr.get_position() > (5288 - 5)))){
 	//	pros::delay(2);
 	//}
@@ -180,14 +188,54 @@ void autonomous() {
  */
 void opcontrol() {
 
+	pros::Controller C1(pros::E_CONTROLLER_MASTER);
 	//rallm -> moveVoltage(1000);
 	//lallm -> moveVoltage(1000);
+	// voltage is in millivolts for moveVoltage
 
+	std::shared_ptr<okapi::AsyncPositionController<double, double>> elepid = okapi::AsyncPosControllerBuilder().withMotor(gele).build();
+	//max rotations is 3.9 for elevator
+	while(true)
+	{
+		int LX = C1.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_X);
+		int LY = C1.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
+		if(C1.get_digital(pros::E_CONTROLLER_DIGITAL_X) == 1)
+		{
+			elepid->setTarget(4);
+		}
+		else if(C1.get_digital(pros::E_CONTROLLER_DIGITAL_A) == 1)
+		{
+			elepid->setTarget(2);
+		}
+		else if(C1.get_digital(pros::E_CONTROLLER_DIGITAL_B) == 1)
+		{
+			elepid->setTarget(0);
+		}
+		else if(C1.get_digital(pros::E_CONTROLLER_DIGITAL_Y) == 1){
+			rallm->moveVoltage(5000);
+			lallm->moveVoltage(5000);
+		}
+		else if(LX || LY){
+			rallm->moveVoltage((LY*250)-(LX*250));
+			lallm->moveVoltage((LY*250)+(LX*250));
+		}
+		else{
+			rallm->moveVoltage(0);
+			lallm->moveVoltage(0);
+		}
+		pros::delay(5);
+	}
+		
+
+
+
+
+  	/* move elevator set amount
 	gele -> moveVoltage(5000);
 
 	pros::delay(300);
+	*/
 /**	enum ports{motorfrp=1,motorflp=2,motorbrp=10,motorblp=20};
-	pros::Controller C1(pros::E_CONTROLLER_MASTER);
 	pros::Motor Mbr(motorbrp,1);
 	pros::Motor Mbl(motorblp);
 	pros::Motor Mfr(motorfrp,1);
