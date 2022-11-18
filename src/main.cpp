@@ -28,6 +28,63 @@ std::shared_ptr<okapi::MotorGroup> lallm; //motor group for all left motors
 std::shared_ptr<okapi::MotorGroup> gele; //motor group for elevator motors
 std::shared_ptr<okapi::MotorGroup> glift; //motor group for lift motors
 
+std::shared_ptr<pros::Imu> imu;
+
+class PIDController{
+	public:
+	double Kp;
+	double Ki;
+	double Kd;
+	double dt;
+	double prev_error;
+	double sum;
+
+
+PIDController (double pKp,
+	double pKi,
+	double pKd,
+	double pdt){
+	Kp = pKp;
+	Ki = pKi;
+	Kd = pKd;
+	dt = pdt;
+	prev_error = 0;
+	sum = 0;
+}
+
+//set target in degrees of rotationn
+void reset (double perr){
+	prev_error = perr;
+	sum = 0;
+}
+
+double update (double perr){
+	double de_dt = (perr - prev_error)/dt;
+	sum = sum + perr*dt;
+	double output = Kp*perr + Kd*de_dt + Ki*sum;
+	prev_error = perr;
+	return output;
+}
+};
+
+
+void turn_degrees(okapi::MotorGroup prallm, okapi::MotorGroup plallm, pros::Imu sensor, double target_deg){
+	double error = 0;
+	double vKp = 100;
+	double vKi = 0;
+	double vKd = 0;
+	double vdt = 5;
+	PIDController PIDControl(vKp, vKi, vKd, vdt);
+	PIDControl.reset(error);
+	while(abs(error) < 1){
+		int out = PIDControl.update(error);
+		prallm.moveVoltage(-out);
+		plallm.moveVoltage(out);
+		double current_deg = sensor.get_rotation();
+		error = target_deg - current_deg;
+		pros::delay(vdt);
+	}
+}
 /**
  * A callback function for LLEMU's center button.
  *
@@ -75,6 +132,9 @@ void initialize() {
 	okapi::Motor rlift (13,false,okapi::AbstractMotor::gearset::green,okapi::AbstractMotor::encoderUnits::rotations);
 	okapi::Motor llift (14,true,okapi::AbstractMotor::gearset::green,okapi::AbstractMotor::encoderUnits::rotations);
 	glift.reset(new okapi::MotorGroup({rlift, llift}));
+
+	pros::Imu imu_sensor(4);
+	imu.reset(&imu_sensor);
 }
 
 /**
@@ -111,9 +171,13 @@ void autonomous() {
 	white 3.25in diameter
 	*/
 
+	/** move elevator
 	gele -> moveVoltage(5000);
 
-	pros::delay(300);
+	pros::delay(300);**/
+
+	turn_degrees(*rallm, *lallm, *imu, 90);
+
 	/* old code for moving bot forward
 	enum ports{motorfrp=1,motorflp=2,motorbrp=10,motorblp=20};
 	char sforwardbot = 'C';
