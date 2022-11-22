@@ -22,6 +22,9 @@ motor 19 = left elevator motor. is inverted
 motor 13 = right lift motor
 motor 14 left lift motor. is inverted
 */
+
+std::shared_ptr<pros::Controller> C1;
+
 std::shared_ptr<okapi::MotorGroup> rallm; //motor group for all right motors
 std::shared_ptr<okapi::MotorGroup> lallm; //motor group for all left motors
 
@@ -61,30 +64,57 @@ void reset (double perr){
 double update (double perr){
 	double de_dt = (perr - prev_error)/dt;
 	sum = sum + perr*dt;
-	double output = Kp*perr + Kd*de_dt + Ki*sum;
+	double output = Kp*perr + Ki*sum + Kd*de_dt;
 	prev_error = perr;
 	return output;
 }
 };
 
+double dclamp(double value, double low, double high){
+	if(value < low){
+		return low;
+	}
+	else if(value > high){
+		return high;
+	}
+	else{
+		return value;
+	}
+}
 
-void turn_degrees(okapi::MotorGroup prallm, okapi::MotorGroup plallm, pros::Imu sensor, double target_deg){
-	double error = 0;
-	double vKp = 100;
+void turn_degrees(pros::Controller pC1, okapi::MotorGroup prallm, okapi::MotorGroup plallm, pros::Imu sensor, double target_deg){
+	double current_deg = sensor.get_rotation();
+	//pC1.print (0, 0, "error:%d %d %d %d", errno, ENXIO, ENODEV, EAGAIN);
+	double err = target_deg - current_deg;
+	double vKp = 200;
 	double vKi = 0;
 	double vKd = 0;
 	double vdt = 5;
+	double timesincegoal = 0;
+	bool run = true;
+	double errtolerance = 1;
 	PIDController PIDControl(vKp, vKi, vKd, vdt);
-	PIDControl.reset(error);
-	while(abs(error) < 1){
-		int out = PIDControl.update(error);
+	PIDControl.reset(err);
+	while(run){
+		printf("error: %f\n", err);
+		int out = dclamp(PIDControl.update(err), -12000, 12000);
 		prallm.moveVoltage(-out);
 		plallm.moveVoltage(out);
-		double current_deg = sensor.get_rotation();
-		error = target_deg - current_deg;
+		current_deg = sensor.get_rotation();
+		err = target_deg - current_deg;
+		if(abs(err) < errtolerance && (timesincegoal/1000 == 1)){
+			run = false;
+		}
+		else if(abs(err) < errtolerance){
+			timesincegoal = timesincegoal + vdt;
+		}
+		else{
+			timesincegoal = 0;
+		}
 		pros::delay(vdt);
-	}
+	}	
 }
+
 /**
  * A callback function for LLEMU's center button.
  *
@@ -113,6 +143,9 @@ void initialize() {
 
 	pros::lcd::register_btn1_cb(on_center_button);
 
+	pros::Controller controller(pros::E_CONTROLLER_MASTER);
+	C1.reset(&controller);
+
 	okapi::Motor frredm (1,false,okapi::AbstractMotor::gearset::green,okapi::AbstractMotor::encoderUnits::rotations);
 	okapi::Motor frgrem (2,true,okapi::AbstractMotor::gearset::green,okapi::AbstractMotor::encoderUnits::rotations);
 	okapi::Motor brredm (11,false,okapi::AbstractMotor::gearset::green,okapi::AbstractMotor::encoderUnits::rotations);
@@ -133,8 +166,11 @@ void initialize() {
 	okapi::Motor llift (14,true,okapi::AbstractMotor::gearset::green,okapi::AbstractMotor::encoderUnits::rotations);
 	glift.reset(new okapi::MotorGroup({rlift, llift}));
 
-	pros::Imu imu_sensor(4);
-	imu.reset(&imu_sensor);
+
+	imu.reset(new pros::Imu(4));
+	
+	int ret = imu->reset(true);
+	// C1->print(0,0,"test: %d", ret);
 }
 
 /**
@@ -175,8 +211,9 @@ void autonomous() {
 	gele -> moveVoltage(5000);
 
 	pros::delay(300);**/
-
-	turn_degrees(*rallm, *lallm, *imu, 90);
+	// double data = imu->get_rotation();
+	// printf("test: %f\n", data);
+	turn_degrees(*C1, *rallm, *lallm, *imu, 360);
 
 	/* old code for moving bot forward
 	enum ports{motorfrp=1,motorflp=2,motorbrp=10,motorblp=20};
@@ -252,7 +289,6 @@ void autonomous() {
  */
 void opcontrol() {
 
-	pros::Controller C1(pros::E_CONTROLLER_MASTER);
 	//rallm -> moveVoltage(1000);
 	//lallm -> moveVoltage(1000);
 	// voltage is in millivolts for moveVoltage
@@ -261,21 +297,21 @@ void opcontrol() {
 	//max rotations is 3.9 for elevator
 	while(true)
 	{
-		int LX = C1.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_X);
-		int LY = C1.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
-		if(C1.get_digital(pros::E_CONTROLLER_DIGITAL_X) == 1)
+		int LX = C1 -> get_analog(pros::E_CONTROLLER_ANALOG_LEFT_X);
+		int LY = C1 -> get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
+		if(C1 -> get_digital(pros::E_CONTROLLER_DIGITAL_X) == 1)
 		{
 			elepid->setTarget(4);
 		}
-		else if(C1.get_digital(pros::E_CONTROLLER_DIGITAL_A) == 1)
+		else if(C1 -> get_digital(pros::E_CONTROLLER_DIGITAL_A) == 1)
 		{
 			elepid->setTarget(2);
 		}
-		else if(C1.get_digital(pros::E_CONTROLLER_DIGITAL_B) == 1)
+		else if(C1 -> get_digital(pros::E_CONTROLLER_DIGITAL_B) == 1)
 		{
 			elepid->setTarget(0);
 		}
-		else if(C1.get_digital(pros::E_CONTROLLER_DIGITAL_Y) == 1){
+		else if(C1 -> get_digital(pros::E_CONTROLLER_DIGITAL_Y) == 1){
 			rallm->moveVoltage(5000);
 			lallm->moveVoltage(5000);
 		}
