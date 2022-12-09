@@ -27,6 +27,7 @@ std::shared_ptr<pros::Controller> C1;
 
 std::shared_ptr<okapi::MotorGroup> rallm; //motor group for all right motors
 std::shared_ptr<okapi::MotorGroup> lallm; //motor group for all left motors
+std::shared_ptr<okapi::MotorGroup> allm; //motor group for all motors
 
 std::shared_ptr<okapi::MotorGroup> gele; //motor group for elevator motors
 std::shared_ptr<okapi::MotorGroup> glift; //motor group for lift motors
@@ -115,6 +116,7 @@ void turn_degrees(pros::Controller pC1, okapi::MotorGroup prallm, okapi::MotorGr
 	}	
 }
 
+
 /**
  * A callback function for LLEMU's center button.
  *
@@ -157,6 +159,8 @@ void initialize() {
 	okapi::Motor blredm (20,true,okapi::AbstractMotor::gearset::green,okapi::AbstractMotor::encoderUnits::rotations);
 	okapi::Motor blgrem (8,false,okapi::AbstractMotor::gearset::green,okapi::AbstractMotor::encoderUnits::rotations);
 	lallm.reset(new okapi::MotorGroup({flredm, flgrem, blredm, blgrem}));
+
+	allm.reset(new okapi::MotorGroup({frredm, frgrem, brredm, brgrem, flredm, flgrem, blredm, blgrem}));
 
 	okapi::Motor rele (12,false,okapi::AbstractMotor::gearset::green,okapi::AbstractMotor::encoderUnits::rotations);
 	okapi::Motor lele (19,true,okapi::AbstractMotor::gearset::green,okapi::AbstractMotor::encoderUnits::rotations);
@@ -204,8 +208,16 @@ void competition_initialize() {}
  */
 void autonomous() {
 	/** green wheels are 2.75in diameter
+	~8.64in circumference
+	for green: 500.03589393235480037932935110492 tick/ft
+	0.00199985643457683597355839567223 ft/tick
 	white 3.25in diameter
 	*/
+
+	/** old code for moving absolute
+	double inpertick = .0113446401;
+	double fttick = inpertick/12;
+	fttick = ((1/fttick) *5);
 
 	/** move elevator
 	gele -> moveVoltage(5000);
@@ -213,7 +225,34 @@ void autonomous() {
 	pros::delay(300);**/
 	// double data = imu->get_rotation();
 	// printf("test: %f\n", data);
-	turn_degrees(*C1, *rallm, *lallm, *imu, 360);
+
+	std::shared_ptr<okapi::AsyncPositionController<double, double>> elepid = okapi::AsyncPosControllerBuilder().withMotor(gele).build();
+	std::shared_ptr<okapi::AsyncPositionController<double, double>> allmpid = okapi::AsyncPosControllerBuilder().withMotor(allm).build();
+	std::shared_ptr<okapi::AsyncPositionController<double, double>> rallmpid = okapi::AsyncPosControllerBuilder().withMotor(rallm).build();
+	std::shared_ptr<okapi::AsyncPositionController<double, double>> lallmpid = okapi::AsyncPosControllerBuilder().withMotor(lallm).build();
+	//max rotations is 3.9 for elevator
+
+	/**
+	allmpid -> setMaxVelocity(300);
+	allmpid->setTarget(5);
+	allmpid->waitUntilSettled();
+	allm->moveVoltage(0);
+	pros::delay(50);
+	*/
+	rallm->tarePosition();
+	lallm->tarePosition();
+	rallmpid -> setMaxVelocity(300);
+	lallmpid -> setMaxVelocity(300);
+	rallmpid->setTarget(10);
+	lallmpid->setTarget(10);
+	rallmpid->waitUntilSettled();
+	lallmpid->waitUntilSettled();
+	rallm->moveVoltage(0);
+	lallm->moveVoltage(0);
+	pros::delay(500);
+
+	turn_degrees(*C1, *rallm, *lallm, *imu, 180);
+	pros::delay(5);
 
 	/* old code for moving bot forward
 	enum ports{motorfrp=1,motorflp=2,motorbrp=10,motorblp=20};
@@ -227,16 +266,7 @@ void autonomous() {
 	pros::Motor Mfl(motorflp);
 	*/
 
-	/** green wheels are 2.75in diameter
-	for green: 500.03589393235480037932935110492 tick/ft
-	0.00199985643457683597355839567223 ft/tick
-	*/
-
-	/** old code for moving absolute
-	double inpertick = .0113446401;
-	double fttick = inpertick/12;
-	fttick = ((1/fttick) *5);
-	
+	/**	
 	Mbr.tare_position();
 	Mbl.tare_position();
 	Mfr.tare_position();
