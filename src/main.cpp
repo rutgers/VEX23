@@ -1,39 +1,17 @@
 #include "main.h"
+#include "okapi/api.hpp"
 
 /**
+connect controller to robot by taking one motor connector
+see if it shows connecting icon
+plug in usb c to controller to upload
 pros make to build without upload
 pros mu to build and upload
 
-Motor 1 = front right red gear motor
-Motor 2 = front right green gear motor. is inverted
-
-Motor 11 = back right red motor
-Motor 3 = back right green motor. is inverted
-
-motor 10 = front left red motor. is inverted
-motor 9 = front left green motor
-
-motor 20 = back left red motor. is inverted
-motor 8 = back left green motor
-
-motor 12 = right elevator motor
-motor 19 = left elevator motor. is inverted
-
-motor 13 = right lift motor
-motor 14 left lift motor. is inverted
+use -> to get the object the pointer is referring to
 */
 
-std::shared_ptr<pros::Controller> C1;
-
-std::shared_ptr<okapi::MotorGroup> rallm; //motor group for all right motors
-std::shared_ptr<okapi::MotorGroup> lallm; //motor group for all left motors
-std::shared_ptr<okapi::MotorGroup> allm; //motor group for all motors
-
-std::shared_ptr<okapi::MotorGroup> gele; //motor group for elevator motors
-std::shared_ptr<okapi::MotorGroup> glift; //motor group for lift motors
-
-std::shared_ptr<pros::Imu> imu;
-
+/*
 class PIDController{
 	public:
 	double Kp;
@@ -115,7 +93,7 @@ void turn_degrees(pros::Controller pC1, okapi::MotorGroup prallm, okapi::MotorGr
 		pros::delay(vdt);
 	}	
 }
-
+*/
 
 /**
  * A callback function for LLEMU's center button.
@@ -133,6 +111,54 @@ void on_center_button() {
 	}
 }
 
+// PID Control
+okapi::IterativePosPIDController::Gains ks; 
+
+// Drive Motor Initializations
+std::shared_ptr<okapi::Motor> frontFrontLft;
+std::shared_ptr<okapi::Motor> frontLft;
+std::shared_ptr<okapi::Motor> backLft;
+std::shared_ptr<okapi::Motor> backBackLft;
+
+std::shared_ptr<okapi::Motor> frontFrontRt;
+std::shared_ptr<okapi::Motor> frontRt;
+std::shared_ptr<okapi::Motor> backRt;
+std::shared_ptr<okapi::Motor> backBackRt;
+
+std::shared_ptr<okapi::MotorGroup> drive_lft;
+std::shared_ptr<okapi::MotorGroup> drive_rt;
+
+// Chassis Initialization
+std::shared_ptr<okapi::ChassisController> chassis;
+
+// Front Lift Initializations
+std::shared_ptr<okapi::Motor> intakeL;
+std::shared_ptr<okapi::Motor> intakeR;
+std::shared_ptr<okapi::MotorGroup> intake;
+
+// Flywheel Initializations
+std::shared_ptr<okapi::Motor> flywheelL;
+std::shared_ptr<okapi::Motor> flywheelR;
+std::shared_ptr<okapi::MotorGroup> flywheel;
+
+// Indexer Initializations
+std::shared_ptr<okapi::Motor> indexer;
+
+// Controller Initializations
+std::shared_ptr<pros::Controller> master;
+
+// IMU Initialization
+std::shared_ptr<pros::Imu> imu;
+
+// Color Sensor Initialization
+std::shared_ptr<pros::Optical> color_sensor;
+
+// Limit Switch Initialization
+std::shared_ptr<pros::ADIDigitalIn> limit_switch;
+
+// Ratchet Initialization
+std::shared_ptr<okapi::Motor> ratchet;
+
 /**
  * Runs initialization code. This occurs as soon as the program is started.
  *
@@ -140,6 +166,59 @@ void on_center_button() {
  * to keep execution time for this mode under a few seconds.
  */
 void initialize() {
+	ks.kP = 0.0010;
+	ks.kI = 0;
+	ks.kD = 0;
+	ks.kBias = 0;
+
+	// Drive Motors (front is shooting direction)
+	frontFrontLft.reset(new okapi::Motor(1, true, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
+	frontLft.reset(new okapi::Motor(2, true, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
+	backLft.reset(new okapi::Motor(3, true, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
+	backBackLft.reset(new okapi::Motor(4, true, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
+
+	frontFrontRt.reset(new okapi::Motor(11, false, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
+	frontRt.reset(new okapi::Motor(12, false, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
+	backRt.reset(new okapi::Motor(13, false, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
+	backBackRt.reset(new okapi::Motor(14, false, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
+
+	drive_lft.reset(new okapi::MotorGroup({frontFrontLft, frontLft, backLft, backBackLft}));
+	drive_rt.reset(new okapi::MotorGroup({frontFrontRt, frontRt, backRt, backBackRt}));
+	chassis = okapi::ChassisControllerBuilder()
+				  .withMotors(drive_lft, drive_rt)
+				  // Green gearset, 4 in wheel diam, 11.5 in wheel track
+				  .withDimensions(okapi::AbstractMotor::gearset::blue, {{3.25_in, 12_in}, okapi::imev5BlueTPR})
+				  .withGains(ks, ks)
+				  .build();
+
+	// Intake - with gearset
+	intakeR.reset(new okapi::Motor(19, false, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
+	intakeL.reset(new okapi::Motor(20, true, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
+	intake.reset(new okapi::MotorGroup({intakeR, intakeL}));
+	intake->setBrakeMode(okapi::AbstractMotor::brakeMode::hold);
+
+	// flywheel
+	flywheelL.reset(new okapi::Motor(16, true, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
+	flywheelR.reset(new okapi::Motor(17, false, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
+	flywheel.reset(new okapi::MotorGroup({flywheelR, flywheelL}));
+	flywheel->setBrakeMode(okapi::AbstractMotor::brakeMode::hold);
+
+	// Controller Initialization
+	master.reset(new pros::Controller(pros::E_CONTROLLER_MASTER));
+
+	// Color Sensor
+	color_sensor.reset(new pros::Optical(5));
+	color_sensor->set_led_pwm(100);
+	// Limit Switch B
+	limit_switch.reset(new pros::ADIDigitalIn('B'));
+
+
+	// IMU
+	imu.reset(new pros::Imu(15));
+
+	// indexer 
+	indexer.reset(new okapi::Motor(10, true, okapi::AbstractMotor::gearset::green, okapi::AbstractMotor::encoderUnits::rotations)); 
+/** old code below:
 	pros::lcd::initialize();
 	pros::lcd::set_text(1, "Hello PROS User!");
 
@@ -174,6 +253,7 @@ void initialize() {
 	imu.reset(new pros::Imu(4));
 	
 	int ret = imu->reset(true);
+	*/
 	// C1->print(0,0,"test: %d", ret);
 }
 
@@ -226,7 +306,7 @@ void autonomous() {
 	// double data = imu->get_rotation();
 	// printf("test: %f\n", data);
 
-	std::shared_ptr<okapi::AsyncPositionController<double, double>> elepid = okapi::AsyncPosControllerBuilder().withMotor(gele).build();
+	/*std::shared_ptr<okapi::AsyncPositionController<double, double>> elepid = okapi::AsyncPosControllerBuilder().withMotor(gele).build();
 	std::shared_ptr<okapi::AsyncPositionController<double, double>> allmpid = okapi::AsyncPosControllerBuilder().withMotor(allm).build();
 	std::shared_ptr<okapi::AsyncPositionController<double, double>> rallmpid = okapi::AsyncPosControllerBuilder().withMotor(rallm).build();
 	std::shared_ptr<okapi::AsyncPositionController<double, double>> lallmpid = okapi::AsyncPosControllerBuilder().withMotor(lallm).build();
@@ -238,7 +318,7 @@ void autonomous() {
 	allmpid->waitUntilSettled();
 	allm->moveVoltage(0);
 	pros::delay(50);
-	*/
+	
 	rallm->tarePosition();
 	lallm->tarePosition();
 	rallmpid -> setMaxVelocity(300);
@@ -250,9 +330,6 @@ void autonomous() {
 	rallm->moveVoltage(0);
 	lallm->moveVoltage(0);
 	pros::delay(500);
-
-	turn_degrees(*C1, *rallm, *lallm, *imu, 180);
-	pros::delay(5);
 
 	/* old code for moving bot forward
 	enum ports{motorfrp=1,motorflp=2,motorbrp=10,motorblp=20};
@@ -317,42 +394,47 @@ void autonomous() {
  * operator control task will be stopped. Re-enabling the robot will restart the
  * task, not resume it from where it left off.
  */
+
+
+bool intake_on = false;
+
 void opcontrol() {
 
-	//rallm -> moveVoltage(1000);
-	//lallm -> moveVoltage(1000);
-	// voltage is in millivolts for moveVoltage
+	/* voltage is in millivolts for moveVoltage
+	min  -12000 mV to max 12000 mV
+	*/
 
-	std::shared_ptr<okapi::AsyncPositionController<double, double>> elepid = okapi::AsyncPosControllerBuilder().withMotor(gele).build();
+	//std::shared_ptr<okapi::AsyncPositionController<double, double>> elepid = okapi::AsyncPosControllerBuilder().withMotor(gele).build();
 	//max rotations is 3.9 for elevator
 	while(true)
 	{
-		int LX = C1 -> get_analog(pros::E_CONTROLLER_ANALOG_LEFT_X);
-		int LY = C1 -> get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
-		if(C1 -> get_digital(pros::E_CONTROLLER_DIGITAL_X) == 1)
-		{
-			elepid->setTarget(4);
-		}
-		else if(C1 -> get_digital(pros::E_CONTROLLER_DIGITAL_A) == 1)
-		{
-			elepid->setTarget(2);
-		}
-		else if(C1 -> get_digital(pros::E_CONTROLLER_DIGITAL_B) == 1)
-		{
-			elepid->setTarget(0);
-		}
-		else if(C1 -> get_digital(pros::E_CONTROLLER_DIGITAL_Y) == 1){
-			rallm->moveVoltage(5000);
-			lallm->moveVoltage(5000);
+		int LX = master -> get_analog(pros::E_CONTROLLER_ANALOG_LEFT_X);
+		int LY = master -> get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
+		//drive
+		if(master -> get_digital(pros::E_CONTROLLER_DIGITAL_Y) == 1){
+			drive_lft->moveVoltage(5000);
+			drive_rt->moveVoltage(5000);
 		}
 		else if(LX || LY){
-			rallm->moveVoltage((LY*250)-(LX*250));
-			lallm->moveVoltage((LY*250)+(LX*250));
+			drive_rt->moveVoltage((LY*250)-(LX*250));
+			drive_lft->moveVoltage((LY*250)+(LX*250));
 		}
 		else{
-			rallm->moveVoltage(0);
-			lallm->moveVoltage(0);
+			drive_rt->moveVoltage(0);
+			drive_lft->moveVoltage(0);
 		}
+		//intake
+		if(master -> get_digital_new_press(pros::E_CONTROLLER_DIGITAL_X)){
+			if(intake_on){
+				intake->moveVoltage(0);
+				intake_on = false;
+			}
+			else{
+				intake->moveVoltage(12000);
+				intake_on = true;
+			}
+		}
+		
 		pros::delay(5);
 	}
 		
@@ -365,34 +447,5 @@ void opcontrol() {
 
 	pros::delay(300);
 	*/
-/**	enum ports{motorfrp=1,motorflp=2,motorbrp=10,motorblp=20};
-	pros::Motor Mbr(motorbrp,1);
-	pros::Motor Mbl(motorblp);
-	pros::Motor Mfr(motorfrp,1);
-	pros::Motor Mfl(motorflp);
-	while(true){
-		int LX = C1.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_X);
-		int LY = C1.get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
-		if(C1.get_digital(pros::E_CONTROLLER_DIGITAL_B)){
-			Mbr.move(127);
-			Mbl.move(127);
-			Mfr.move(127);
-			Mfl.move(127);
-		}
-		else if(LX or LY){
-			Mbr.move(LY-LX);
-			Mbl.move(LY+LX);
-			Mfr.move(LY-LX);
-			Mfl.move(LY+LX);
-		}
-		else{
-			Mbr.move(0);
-			Mbl.move(0);
-			Mfr.move(0);
-			Mfl.move(0);
-		}
 
-		pros::delay(2);
-	}
-*/
 }
