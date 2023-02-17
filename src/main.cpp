@@ -5,6 +5,8 @@
 connect controller to robot by taking one motor connector
 see if it shows connecting icon
 plug in usb c to controller to upload
+
+open pros menu integrated terminal
 pros make to build without upload
 pros mu to build and upload
 
@@ -395,8 +397,14 @@ void autonomous() {
  * task, not resume it from where it left off.
  */
 
+bool slowmode_on = false;
 
 bool intake_on = false;
+bool flywheel_on = false;
+bool indexer_on = false;
+bool indexer_roller = false;
+
+int motor_multiple = 250;
 
 void opcontrol() {
 
@@ -408,23 +416,31 @@ void opcontrol() {
 	//max rotations is 3.9 for elevator
 	while(true)
 	{
+		printf("hi\n");
 		int LX = master -> get_analog(pros::E_CONTROLLER_ANALOG_LEFT_X);
 		int LY = master -> get_analog(pros::E_CONTROLLER_ANALOG_LEFT_Y);
-		//drive
-		if(master -> get_digital(pros::E_CONTROLLER_DIGITAL_Y) == 1){
-			drive_lft->moveVoltage(5000);
-			drive_rt->moveVoltage(5000);
+		//drive slowmode toggle
+		if(master -> get_digital_new_press(pros::E_CONTROLLER_DIGITAL_R1)){
+			if(slowmode_on){
+				motor_multiple = 250;
+				slowmode_on = false;
+			}
+			else{
+				motor_multiple = 50;
+				slowmode_on = true;
+			}
 		}
-		else if(LX || LY){
-			drive_rt->moveVoltage((LY*250)-(LX*250));
-			drive_lft->moveVoltage((LY*250)+(LX*250));
+		//drive
+		if(LX || LY){
+			drive_rt->moveVoltage((LY*motor_multiple)-(LX*motor_multiple));
+			drive_lft->moveVoltage((LY*motor_multiple)+(LX*motor_multiple));
 		}
 		else{
 			drive_rt->moveVoltage(0);
 			drive_lft->moveVoltage(0);
 		}
 		//intake
-		if(master -> get_digital_new_press(pros::E_CONTROLLER_DIGITAL_X)){
+		if(master -> get_digital_new_press(pros::E_CONTROLLER_DIGITAL_B)){
 			if(intake_on){
 				intake->moveVoltage(0);
 				intake_on = false;
@@ -432,6 +448,39 @@ void opcontrol() {
 			else{
 				intake->moveVoltage(12000);
 				intake_on = true;
+			}
+		}
+		//flywheel
+		if(master -> get_digital_new_press(pros::E_CONTROLLER_DIGITAL_A)){
+			if(flywheel_on){
+				flywheel->moveVoltage(0);
+				flywheel_on = false;
+			}
+			else{
+				flywheel->moveVoltage(12000);
+				flywheel_on = true;
+			}
+		}
+		//indexer
+		if(master -> get_digital_new_press(pros::E_CONTROLLER_DIGITAL_X)){
+			if(indexer_on){
+				indexer->moveVoltage(0);
+				indexer_on = false;
+			}
+			else{
+				indexer->moveVoltage(12000);
+				indexer_on = true;
+			}
+		}
+		//indexer roller mode
+		if(master -> get_digital_new_press(pros::E_CONTROLLER_DIGITAL_Y)){
+			if(indexer_roller){
+				indexer->moveVoltage(0);
+				indexer_roller = false;
+			}
+			else{
+				indexer->moveVoltage(5000);
+				indexer_roller = true;
 			}
 		}
 		
