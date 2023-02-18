@@ -23,7 +23,7 @@
 char data_received[50];
 char previous_data_received[50];
 
-char* none_string = "NONE";
+char none_string[] = "NONE";
 bool detected = false;
 
 double xmin = 0;
