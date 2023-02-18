@@ -294,9 +294,9 @@ void opcontrol()
 	bool first_launch = true;
 	while (true)
 	{
-		read_from_jetson();
+
 		pros::c::optical_rgb_s_t color = color_sensor->get_rgb();
-		master->print(0, 0, "%f %f\n", xmin, xmax);
+		master->print(0, 0, "%f %f\n", color.red, color.blue);
 		// Drive Mechanics
 
 		// if (selector::auton == 0)

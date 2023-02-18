@@ -85,13 +85,17 @@ bool read_from_jetson()
 		printf(data_received);
 		if(strcmp(data_received, "RPI_NONE\n")) {
 			detected = false;
+            xmin = 0
+			ymin = 0
+			xmax = 0
+			ymax = 0
 		}
 		else {
 			parsed_data_received = str_split(data_received, '_');
-			xmin = atof(parsed_data_received[1]);
-			ymin = atof(parsed_data_received[2]);
-			xmax = atof(parsed_data_received[3]);
-			ymax = atof(parsed_data_received[4]);
+			xmin = atof(parsed_data_received[2]);
+			ymin = atof(parsed_data_received[3]);
+			xmax = atof(parsed_data_received[4]);
+			ymax = atof(parsed_data_received[5]);
 			detected = true;
 		}
  
