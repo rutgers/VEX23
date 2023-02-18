@@ -22,9 +22,15 @@
 
 char data_received[50];
 char previous_data_received[50];
- 
-double xmin, ymin, xmax, ymax;
+
+char* none_string = "NONE";
 bool detected = false;
+
+double xmin = 0;
+double ymin = 0;
+double xmax = 0;
+double ymax = 0;
+
 // Reads data being sent from the Jetson
 // Credited to: https://stackoverflow.com/questions/9210528/split-string-with-delimiters-in-c
 char** str_split(char* a_str, const char a_delim)
@@ -78,13 +84,14 @@ char** str_split(char* a_str, const char a_delim)
 bool read_from_jetson()
 {
     char** parsed_data_received;
+
     fgets(data_received, sizeof(data_received), stdin);
  
     if (strcmp(data_received, previous_data_received) != 0)
     {
 		printf(data_received);
         parsed_data_received = str_split(data_received, '_');
-		if(strcmp(parsed_data_received[1], "NONE")) {
+		if(strcmp(parsed_data_received[1], none_string) == 0) {
 			detected = false;
             xmin = 0;
 			ymin = 0;
