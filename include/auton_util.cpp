@@ -83,7 +83,8 @@ bool read_from_jetson()
     if (strcmp(data_received, previous_data_received) != 0)
     {
 		printf(data_received);
-		if(strcmp(data_received, "RPI_NONE\n")) {
+        parsed_data_received = str_split(data_received, '_');
+		if(strcmp(parsed_data_received[1], "NONE")) {
 			detected = false;
             xmin = 0;
 			ymin = 0;
@@ -91,7 +92,6 @@ bool read_from_jetson()
 			ymax = 0;
 		}
 		else {
-			parsed_data_received = str_split(data_received, '_');
 			xmin = atof(parsed_data_received[2]);
 			ymin = atof(parsed_data_received[3]);
 			xmax = atof(parsed_data_received[4]);
@@ -284,7 +284,7 @@ void move_roller(std::shared_ptr<okapi::MotorGroup> lft,
     goal_color new_color = sensor_rgb_to_enum(sensor);
     
     while(new_color == starting_color && !master->get_digital(DIGITAL_A)) {
-        master->print(0, 0, "%d %d\n",starting_color, new_color);
+        //master->print(0, 0, "%d %d\n",starting_color, new_color);
         new_color = sensor_rgb_to_enum(sensor);
     }
     intake->moveVelocity(0);
