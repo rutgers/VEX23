@@ -50,15 +50,15 @@ void initialize()
 	ks.kBias = 0;
 
 	// Drive Motors
-	frontFrontLft.reset(new okapi::Motor(1, true, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
-	frontLft.reset(new okapi::Motor(2, true, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
-	backLft.reset(new okapi::Motor(3, true, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
-	backBackLft.reset(new okapi::Motor(4, true, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
+	frontFrontLft.reset(new okapi::Motor(11, true, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
+	frontLft.reset(new okapi::Motor(12, false, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
+	backLft.reset(new okapi::Motor(13, true, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
+	backBackLft.reset(new okapi::Motor(14, true, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
 
-	frontFrontRt.reset(new okapi::Motor(11, false, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
-	frontRt.reset(new okapi::Motor(12, false, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
-	backRt.reset(new okapi::Motor(13, false, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
-	backBackRt.reset(new okapi::Motor(14, false, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
+	frontFrontRt.reset(new okapi::Motor(16, false, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
+	frontRt.reset(new okapi::Motor(18, false, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
+	backRt.reset(new okapi::Motor(19, false, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
+	backBackRt.reset(new okapi::Motor(20, true, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
 
 	drive_lft.reset(new okapi::MotorGroup({frontFrontLft, frontLft, backLft, backBackLft}));
 	drive_rt.reset(new okapi::MotorGroup({frontFrontRt, frontRt, backRt, backBackRt}));
@@ -70,32 +70,37 @@ void initialize()
 				  .build();
 
 	// Intake - with gearset
-	intakeR.reset(new okapi::Motor(19, false, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
-	intakeL.reset(new okapi::Motor(20, true, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
+	intakeR.reset(new okapi::Motor(8, false, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
+	intakeL.reset(new okapi::Motor(2, true, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
 	intake.reset(new okapi::MotorGroup({intakeR, intakeL}));
 	intake->setBrakeMode(okapi::AbstractMotor::brakeMode::hold);
 
 	// flywheel
-	flywheelL.reset(new okapi::Motor(16, true, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
-	flywheelR.reset(new okapi::Motor(17, false, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
+	flywheelL.reset(new okapi::Motor(6, true, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
+	flywheelR.reset(new okapi::Motor(7, false, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
 	flywheel.reset(new okapi::MotorGroup({flywheelR, flywheelL}));
 	flywheel->setBrakeMode(okapi::AbstractMotor::brakeMode::hold);
 
+	// rotator
+	rotator.reset(new okapi::Motor(5, true, okapi::AbstractMotor::gearset::green, okapi::AbstractMotor::encoderUnits::rotations));
+
+	// elevator
+	elevator.reset(new okapi::Motor(9, true, okapi::AbstractMotor::gearset::green, okapi::AbstractMotor::encoderUnits::rotations));
+	elevator_control = okapi::AsyncPosControllerBuilder().withMotor(elevator).build();
+
 	// Controller Initialization
 	master.reset(new pros::Controller(pros::E_CONTROLLER_MASTER));
+	partner.reset(new pros::Controller(pros::E_CONTROLLER_PARTNER));
 
-	// Color Sensor
-	color_sensor.reset(new pros::Optical(5));
-	color_sensor->set_led_pwm(100);
-	// Limit Switch B
-	limit_switch.reset(new pros::ADIDigitalIn('B'));
+	// // Color Sensor
+	// color_sensor.reset(new pros::Optical(5));
+	// color_sensor->set_led_pwm(100);
+	// // Limit Switch B
+	// limit_switch.reset(new pros::ADIDigitalIn('B'));
 
 
 	// IMU
-	imu.reset(new pros::Imu(15));
-
-	// indexer 
-	indexer.reset(new okapi::Motor(10, true, okapi::AbstractMotor::gearset::green, okapi::AbstractMotor::encoderUnits::rotations));
+	// imu.reset(new pros::Imu(15));
 
 }
 
@@ -135,7 +140,7 @@ void autonomous()
 	drive_lft->moveVoltage(-2000);
 	drive_rt->moveVoltage(-2000);
 	pros::delay(1000);
-	indexer->moveRelative(1.0/4.0, 25);
+	rotator->moveRelative(1.0/4.0, 25);
 	pros::delay(2000);
 	drive_lft->moveVoltage(2000);
 	drive_rt->moveVoltage(2000);
@@ -294,8 +299,8 @@ void opcontrol()
 	bool first_launch = true;
 	while (true)
 	{
-		read_from_jetson();
-		pros::c::optical_rgb_s_t color = color_sensor->get_rgb();
+		//read_from_jetson();
+		//pros::c::optical_rgb_s_t color = color_sensor->get_rgb();
 		master->print(0, 0, "%f %f\n", xmin, xmax);
 		// Drive Mechanics
 
@@ -355,16 +360,31 @@ void opcontrol()
 			flywheel->moveVoltage(0);
 		}
 
-		
-		if (master->get_digital(DIGITAL_B)) {
-			indexer->moveVoltage(12000);
+		if (master->get_digital(DIGITAL_Y)) {
+			elevator->moveVoltage(12000);
+			//elevator_control->setTarget(1); //takes a number of rotations (if your motor units are rotations)
 		}
-		else if (master->get_digital(DIGITAL_A)) {
-			indexer->moveVoltage(-12000);
+		else if(master->get_digital(DIGITAL_X)){
+			elevator->moveVoltage(-12000);
+			//elevator_control->setTarget(0);
+		}
+		else{
+			elevator->moveVoltage(0);
+		}
+
+
+		if (partner->get_digital(DIGITAL_B)) {
+			rotator->moveVoltage(12000);
+		}
+		else if (partner->get_digital(DIGITAL_A)) {
+			rotator->moveVoltage(-12000);
 		}
 		else {
-			indexer->moveVoltage(0);
+			rotator->moveVoltage(0);
 		}
+
+
+
 		pros::delay(20);
 		if (delay > 0)
 		{

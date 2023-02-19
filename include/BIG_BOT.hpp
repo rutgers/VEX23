@@ -27,7 +27,7 @@ std::shared_ptr<okapi::MotorGroup> drive_rt;
 // Chassis Initialization
 std::shared_ptr<okapi::ChassisController> chassis;
 
-// Front Lift Initializations
+// Intake Initializations
 std::shared_ptr<okapi::Motor> intakeL;
 std::shared_ptr<okapi::Motor> intakeR;
 std::shared_ptr<okapi::MotorGroup> intake;
@@ -37,11 +37,16 @@ std::shared_ptr<okapi::Motor> flywheelL;
 std::shared_ptr<okapi::Motor> flywheelR;
 std::shared_ptr<okapi::MotorGroup> flywheel;
 
-// Indexer Initializations
-std::shared_ptr<okapi::Motor> indexer;
+// Rotator Initializations
+std::shared_ptr<okapi::Motor> rotator;
+
+// Elevator Initializations
+std::shared_ptr<okapi::Motor> elevator;
+std::shared_ptr<okapi::AsyncPositionController<double, double>> elevator_control;
 
 // Controller Initializations
 std::shared_ptr<pros::Controller> master;
+std::shared_ptr<pros::Controller> partner;
 
 // IMU Initialization
 std::shared_ptr<pros::Imu> imu;
@@ -53,5 +58,5 @@ std::shared_ptr<pros::Optical> color_sensor;
 std::shared_ptr<pros::ADIDigitalIn> limit_switch;
 
 // Ratchet Initialization
-std::shared_ptr<okapi::Motor> ratchet;
+//std::shared_ptr<okapi::Motor> ratchet;
 

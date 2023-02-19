@@ -179,6 +179,7 @@ void autonomous()
 
 	int init_angle_offset = -25;
 
+	//in global position (eg. 90 degrees means 90 degrees from when it started, not from where it is now)
 	imu_turning(init_angle_offset-40, drive_lft, drive_rt, imu, master);
 	chassis->moveDistance(-44_in);
 	imu_turning(init_angle_offset, drive_lft, drive_rt, imu, master);
@@ -328,15 +329,25 @@ void opcontrol()
 	int intake_speed = 0;
 	bool first_launch = true;
 	int MAX_INTAKE = 12000;
+	double center_error = 0;
+	double center_val = .5;
+
+
 	while (true)
 	{
-
-		pros::c::optical_rgb_s_t color = color_sensor->get_rgb();
-		master->print(0, 0, "%f %f\n", color.red, color.blue);
-		// Drive Mechanics
-
-		// if (selector::auton == 0)
-		// {
+		read_from_jetson();
+		//master->print(0,0,"%1.3f %1.3f\n", xmin, xmax);
+		//info from rasp pi stored in double xmin, ymin, xmax, ymax;
+		//rasp pi should start OFF before running program
+		//the numbers in these variables go from 0 to 1
+		if(master->get_digital(DIGITAL_L1) && detected) {
+			//printf("%f %f %f %f\n", xmin, xmax, ymin, ymax);
+			center_error = (ymax - ymin)/2+ymin;
+			center_error = center_val - center_error;
+			drive_lft->moveVoltage(6000*center_error);
+			drive_rt->moveVoltage(-6000*center_error);
+			master->print(0,0,"%f\n", center_error);
+		} else{
 			double y = master->get_analog(ANALOG_LEFT_Y);
 			double x = 0; // master->get_analog(ANALOG_LEFT_X);
 			double z = master->get_analog(ANALOG_RIGHT_X);
@@ -348,6 +359,26 @@ void opcontrol()
 
 			drive_lft->moveVoltage((y + x + z) / 127 * move_volt);
 			drive_rt->moveVoltage((y - x - z) / 127 * move_volt);
+		
+		}
+
+		pros::c::optical_rgb_s_t color = color_sensor->get_rgb();
+		//master->print(0, 0, "%f %f\n", color.red, color.blue);
+		// Drive Mechanics
+
+		// if (selector::auton == 0)
+		// {
+			// double y = master->get_analog(ANALOG_LEFT_Y);
+			// double x = 0; // master->get_analog(ANALOG_LEFT_X);
+			// double z = master->get_analog(ANALOG_RIGHT_X);
+
+			// if(partner->get_digital(DIGITAL_B)) {
+			// 	y = y*.5;
+			// 	z = z*.5;
+			// }
+
+			// drive_lft->moveVoltage((y + x + z) / 127 * move_volt);
+			// drive_rt->moveVoltage((y - x - z) / 127 * move_volt);
 		// }
 		// else
 		// {
