@@ -65,7 +65,7 @@ void initialize()
 
 	drive_lft->setBrakeMode(okapi::AbstractMotor::brakeMode::hold);
 	drive_rt->setBrakeMode(okapi::AbstractMotor::brakeMode::hold);
-	
+
 	chassis = okapi::ChassisControllerBuilder()
 				  .withMotors(drive_lft, drive_rt)
 				  // Green gearset, 4 in wheel diam, 11.5 in wheel track
@@ -87,6 +87,7 @@ void initialize()
 	// Controller Initialization
 	master.reset(new pros::Controller(pros::E_CONTROLLER_MASTER));
 	partner.reset(new pros::Controller(pros::E_CONTROLLER_PARTNER));
+
 	// Color Sensor
 	color_sensor.reset(new pros::Optical(9));
 	color_sensor->set_led_pwm(100);
@@ -95,6 +96,8 @@ void initialize()
 
 	// Pneumatics
 	piston.reset(new pros::ADIDigitalOut('A', true));	// back lift piston
+
+	endgame.reset(new pros::ADIDigitalOut('C', true));	// back lift piston
 
 	// IMU
 	imu.reset(new pros::Imu(15));
@@ -429,6 +432,10 @@ void opcontrol()
 		if (delay > 0)
 		{
 			delay = delay - 20;
+		}
+
+		if(master->get_digital(DIGITAL_A) && partner->get_digital(DIGITAL_A)) {
+			endgame->set_value(true);
 		}
 	}
 }

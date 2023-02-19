@@ -44,6 +44,9 @@ std::shared_ptr<pros::Controller> partner;
 // Piston Initializations
 std::shared_ptr<pros::ADIDigitalOut> piston;
 
+// Endgame Launcher Initializations
+std::shared_ptr<pros::ADIDigitalOut> endgame;
+
 // IMU Initialization
 std::shared_ptr<pros::Imu> imu;
 
