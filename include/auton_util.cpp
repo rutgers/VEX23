@@ -6,6 +6,7 @@
 #include <string>
 #include <cstring>
 #include <cassert>
+#include <unistd.h>
 
 #ifndef MAIN_H
 #define MAIN_H
@@ -20,16 +21,29 @@
 #include "vision.cpp"
 #endif
 
-char data_received[50];
-char previous_data_received[50];
+char data_received[100];
+char previous_data_received[100];
 
-char none_string[] = "NONE";
+char none_string[] = "NONE\n";
 bool detected = false;
 
 double xmin = 0;
 double ymin = 0;
 double xmax = 0;
 double ymax = 0;
+
+
+// int is_ready(int fd) {
+//     fd_set fdset;
+//     struct timeval timeout;
+//     int ret;
+//     FD_ZERO(&fdset);
+//     FD_SET(fd, &fdset);
+//     timeout.tv_sec = 0;
+//     timeout.tv_usec = 1;
+//     //int select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,struct timeval *timeout);
+//     return select(1 , &fdset, NULL, NULL, &timeout) == 1 ? 1 : 0;
+// }
 
 // Reads data being sent from the Jetson
 // Credited to: https://stackoverflow.com/questions/9210528/split-string-with-delimiters-in-c
@@ -85,27 +99,30 @@ bool read_from_jetson()
 {
     char** parsed_data_received;
 
+
     fgets(data_received, sizeof(data_received), stdin);
  
     if (strcmp(data_received, previous_data_received) != 0)
     {
-		printf(data_received);
+		//printf(data_received);
         parsed_data_received = str_split(data_received, '_');
+        //printf(parsed_data_received[1]);
+        
 		if(strcmp(parsed_data_received[1], none_string) == 0) {
 			detected = false;
-            xmin = 0;
-			ymin = 0;
-			xmax = 0;
-			ymax = 0;
+            // xmin = 0;
+			// ymin = 0;
+			// xmax = 0;
+			// ymax = 0;
 		}
 		else {
-			xmin = atof(parsed_data_received[2]);
-			ymin = atof(parsed_data_received[3]);
-			xmax = atof(parsed_data_received[4]);
-			ymax = atof(parsed_data_received[5]);
+			xmin = strtod(parsed_data_received[2], nullptr);
+			ymin = strtod(parsed_data_received[3], nullptr);
+			xmax = strtod(parsed_data_received[4], nullptr);
+			ymax = strtod(parsed_data_received[5], nullptr);
 			detected = true;
 		}
- 
+        
         strcpy(previous_data_received, data_received);
         return true;
     }
