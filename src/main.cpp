@@ -26,11 +26,11 @@
 #define SKAR_3 4
 
 // Build Target
-#define BUILD_TARGET BIG_BOT //SKAR_1 or SKAR_2
+#define BUILD_TARGET SMALL_BOT //SKAR_1 or SKAR_2
 
 // Initial speed for auton
 #define AUTON_INIT 165
-#define COLOR_SIDE goal_color::RED //goal_color::RED or goal_color::BLUE
+#define COLOR_SIDE goal_color::BLUE //goal_color::RED or goal_color::BLUE
 
 
 // Build Target

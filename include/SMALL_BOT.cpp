@@ -335,7 +335,7 @@ void opcontrol()
 
 	while (true)
 	{
-		read_from_jetson();
+		//read_from_jetson();
 		//master->print(0,0,"%1.3f %1.3f\n", xmin, xmax);
 		//info from rasp pi stored in double xmin, ymin, xmax, ymax;
 		//rasp pi should start OFF before running program
@@ -465,8 +465,12 @@ void opcontrol()
 			delay = delay - 20;
 		}
 
+		if(master->get_digital(DIGITAL_L1) && master->get_digital(DIGITAL_L2) && master->get_digital(DIGITAL_R1) && master->get_digital(DIGITAL_R2)) {
+			endgame->set_value(false);
+		}
+
 		if(master->get_digital(DIGITAL_A) && partner->get_digital(DIGITAL_A)) {
-			endgame->set_value(true);
+			endgame->set_value(false);
 		}
 	}
 }
