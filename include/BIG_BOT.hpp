@@ -39,10 +39,16 @@ std::shared_ptr<okapi::MotorGroup> flywheel;
 
 // Rotator Initializations
 std::shared_ptr<okapi::Motor> rotator;
+std::shared_ptr<okapi::AsyncPositionController<double, double>> rotator_control;
 
 // Elevator Initializations
-std::shared_ptr<okapi::Motor> elevator;
+std::shared_ptr<okapi::Motor> elevatorL;
+std::shared_ptr<okapi::Motor> elevatorR;
+std::shared_ptr<okapi::MotorGroup> elevator;
 std::shared_ptr<okapi::AsyncPositionController<double, double>> elevator_control;
+
+// Piston Initializations
+std::shared_ptr<pros::ADIDigitalOut> piston;
 
 // Controller Initializations
 std::shared_ptr<pros::Controller> master;

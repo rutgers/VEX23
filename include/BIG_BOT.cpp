@@ -51,13 +51,13 @@ void initialize()
 
 	// Drive Motors
 	frontFrontLft.reset(new okapi::Motor(11, true, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
-	frontLft.reset(new okapi::Motor(12, false, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
-	backLft.reset(new okapi::Motor(13, true, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
-	backBackLft.reset(new okapi::Motor(14, true, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
+	frontLft.reset(new okapi::Motor(12, true, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
+	backLft.reset(new okapi::Motor(13, false, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
+	backBackLft.reset(new okapi::Motor(14, false, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
 
 	frontFrontRt.reset(new okapi::Motor(16, false, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
 	frontRt.reset(new okapi::Motor(18, false, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
-	backRt.reset(new okapi::Motor(19, false, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
+	backRt.reset(new okapi::Motor(19, true, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
 	backBackRt.reset(new okapi::Motor(20, true, okapi::AbstractMotor::gearset::blue, okapi::AbstractMotor::encoderUnits::rotations));
 
 	drive_lft.reset(new okapi::MotorGroup({frontFrontLft, frontLft, backLft, backBackLft}));
@@ -83,10 +83,17 @@ void initialize()
 
 	// rotator
 	rotator.reset(new okapi::Motor(5, true, okapi::AbstractMotor::gearset::green, okapi::AbstractMotor::encoderUnits::rotations));
+	rotator_control = okapi::AsyncPosControllerBuilder().withMotor(rotator).build();
+	rotator->setBrakeMode(okapi::AbstractMotor::brakeMode::hold);
 
 	// elevator
-	elevator.reset(new okapi::Motor(9, true, okapi::AbstractMotor::gearset::green, okapi::AbstractMotor::encoderUnits::rotations));
+	elevatorL.reset(new okapi::Motor(4, false, okapi::AbstractMotor::gearset::green, okapi::AbstractMotor::encoderUnits::rotations));
+	elevatorR.reset(new okapi::Motor(9, true, okapi::AbstractMotor::gearset::green, okapi::AbstractMotor::encoderUnits::rotations));
+	elevator.reset(new okapi::MotorGroup({elevatorR, elevatorL}));
 	elevator_control = okapi::AsyncPosControllerBuilder().withMotor(elevator).build();
+
+	// Pneumatics
+	piston.reset(new pros::ADIDigitalOut('H', true));
 
 	// Controller Initialization
 	master.reset(new pros::Controller(pros::E_CONTROLLER_MASTER));
@@ -136,18 +143,35 @@ void competition_initialize() {}
 
 void autonomous()
 {
-
-	drive_lft->moveVoltage(-2000);
-	drive_rt->moveVoltage(-2000);
-	pros::delay(1000);
-	rotator->moveRelative(1.0/4.0, 25);
+	elevator_control->setTarget(1);
 	pros::delay(2000);
-	drive_lft->moveVoltage(2000);
-	drive_rt->moveVoltage(2000);
+	flywheel->moveVoltage(12000*.75);
+	pros::delay(5000);
+	piston->set_value(false);
+	pros::delay(2000);
+	piston->set_value(true);
+	pros::delay(2000);
+	piston->set_value(false);
+	pros::delay(2000);
+	piston->set_value(true);
+	pros::delay(2000);
+	flywheel->moveVoltage(0);
+	pros::delay(2000);
+	elevator_control->setTarget(0);
+	pros::delay(2000);
+	rotator_control->setTarget(0);
+	pros::delay(2000);
+	// drive_lft->moveVoltage(-2000);
+	// drive_rt->moveVoltage(-2000);
+	// pros::delay(1000);
+	// rotator->moveRelative(1.0/4.0, 25);
+	// pros::delay(2000);
+	// drive_lft->moveVoltage(2000);
+	// drive_rt->moveVoltage(2000);
 
-	pros::delay(1000);
-	drive_lft->moveVoltage(0);
-	drive_rt->moveVoltage(0);
+	// pros::delay(1000);
+	// drive_lft->moveVoltage(0);
+	// drive_rt->moveVoltage(0);
 	// pros::Task launching_task{ [] {
     //     while (pros::Task::notify_take(true, TIMEOUT_MAX)) {
     //         while (!limit_switch->get_value()) 
@@ -297,11 +321,15 @@ void opcontrol()
 	int CATAPULT_SPEED = 12000;
 	int intake_speed = 0;
 	bool first_launch = true;
+	bool stop_rotator = true;
+	double center_error = 0;
+	double center_val = .5;
 	while (true)
 	{
 		//read_from_jetson();
 		//pros::c::optical_rgb_s_t color = color_sensor->get_rgb();
 		master->print(0, 0, "%f %f\n", xmin, xmax);
+
 		// Drive Mechanics
 
 		// if (selector::auton == 0)
@@ -314,10 +342,16 @@ void opcontrol()
 		// }
 		// else
 		// {
+			// tank drive controls
 			double y_l = master->get_analog(ANALOG_LEFT_Y);
 			double y_r = master->get_analog(ANALOG_RIGHT_Y);
-			drive_lft->moveVoltage(y_l / 127 * move_volt);
+			drive_lft->moveVoltage(-y_l / 127 * move_volt);
 			drive_rt->moveVoltage(y_r / 127 * move_volt);
+			// double y = master->get_analog(ANALOG_LEFT_Y);
+			// double x = 0; // master->get_analog(ANALOG_LEFT_X);
+			// double z = master->get_analog(ANALOG_RIGHT_X);
+			// drive_lft->moveVoltage((y + x + z) / 127 * move_volt);
+			// drive_rt->moveVoltage((y - x - z) / 127 * move_volt);
 			/* double y = master->get_analog(ANALOG_LEFT_Y);
 			double x = 0; // master->get_analog(ANALOG_LEFT_X);
 			double z = master->get_analog(ANALOG_RIGHT_X);
@@ -330,10 +364,11 @@ void opcontrol()
 		// 	move_roller(drive_lft, drive_rt, color_sensor, intake, master, COLOR_SIDE);
 		// }
 
-		if (master->get_digital(DIGITAL_R2)) {
+		//intake controls
+		if (master->get_digital(DIGITAL_L2)) {
 			intake->moveVoltage(12000);
 		}
-		else if(master->get_digital(DIGITAL_R1)) 
+		else if(master->get_digital(DIGITAL_L1)) 
 		{
 			intake->moveVoltage(-12000);
 		}
@@ -341,49 +376,67 @@ void opcontrol()
 			intake->moveVoltage(0);
 		}
 
-		if (master->get_digital(DIGITAL_L2)) {
-			flywheel->moveVoltage(12000*.75);
+		//flywheel controls
+		if (master->get_digital(DIGITAL_R2) || partner->get_digital(DIGITAL_R2)) {
+			flywheel->moveVoltage(12000*.6);
 		}
-		else if (master->get_digital(DIGITAL_UP)) {
-			flywheel->moveVoltage(12000*.40);
-		}
-		else if (master->get_digital(DIGITAL_RIGHT)) {
-			flywheel->moveVoltage(12000*.50);
-		}
-		else if (master->get_digital(DIGITAL_DOWN)) {
-			flywheel->moveVoltage(12000*.75);
-		}
-		else if (master->get_digital(DIGITAL_LEFT)) {
-			flywheel->moveVoltage(12000*.85);
-		}
+		// else if (master->get_digital(DIGITAL_UP)) {
+		// 	flywheel->moveVoltage(12000*.40);
+		// }
+		// else if (master->get_digital(DIGITAL_RIGHT)) {
+		// 	flywheel->moveVoltage(12000*.50);
+		// }
+		// else if (master->get_digital(DIGITAL_DOWN)) {
+		// 	flywheel->moveVoltage(12000*.75);
+		// }
 		else {
 			flywheel->moveVoltage(0);
 		}
 
-		if (master->get_digital(DIGITAL_Y)) {
-			elevator->moveVoltage(12000);
-			//elevator_control->setTarget(1); //takes a number of rotations (if your motor units are rotations)
-		}
-		else if(master->get_digital(DIGITAL_X)){
-			elevator->moveVoltage(-12000);
-			//elevator_control->setTarget(0);
+		// piston controls for pushing discs into flywheel
+		if (master->get_digital(DIGITAL_R1) || partner->get_digital(DIGITAL_R1)) {
+			piston->set_value(false);
 		}
 		else{
-			elevator->moveVoltage(0);
+			piston->set_value(true);
 		}
 
-
-		if (partner->get_digital(DIGITAL_B)) {
-			rotator->moveVoltage(12000);
+		//elevator controls
+		if (master->get_digital(DIGITAL_UP) || partner->get_digital(DIGITAL_UP)) {
+			//elevator->moveVoltage(12000);
+			elevator_control->setTarget(1); //takes a number of rotations (if your motor units are rotations)
+			stop_rotator = true;
 		}
-		else if (partner->get_digital(DIGITAL_A)) {
-			rotator->moveVoltage(-12000);
+		else if(master->get_digital(DIGITAL_DOWN) || partner->get_digital(DIGITAL_DOWN)){
+			//elevator->moveVoltage(-12000);
+			//resets elevator back down and to center position (NEEDS ROBOT TO START CENTERED DOWN)
+			rotator_control->setTarget(0);
+			elevator_control->setTarget(0);
+			stop_rotator = false;
 		}
-		else {
-			rotator->moveVoltage(0);
+		// else{
+		// 	elevator->moveVoltage(0);
+		// }
+
+		//camera code
+		if((master->get_digital(DIGITAL_X) && detected) || (partner->get_digital(DIGITAL_UP) && detected)) {
+			//printf("%f %f %f %f\n", xmin, xmax, ymin, ymax);
+			center_error = (xmax - xmin)/2+xmin;
+			center_error = -(center_val - center_error);
+			rotator->moveVoltage(6000*center_error);
+			master->print(0,0,"%f\n", center_error);
+		} else{
+			//if not using camera code then let driver manually control rotator
+			if ((master->get_digital(DIGITAL_LEFT) && stop_rotator) || (partner->get_digital(DIGITAL_LEFT) && stop_rotator)) {
+				rotator->moveVoltage(-7000);
+			}
+			else if ((master->get_digital(DIGITAL_RIGHT) && stop_rotator) || (partner->get_digital(DIGITAL_RIGHT) && stop_rotator)) {
+				rotator->moveVoltage(7000);
+			}
+			else if (stop_rotator){
+				rotator->moveVoltage(0);
+			}
 		}
-
-
 
 		pros::delay(20);
 		if (delay > 0)
