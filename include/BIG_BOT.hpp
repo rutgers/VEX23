@@ -9,6 +9,8 @@
 
 // PID Control
 okapi::IterativePosPIDController::Gains ks; 
+okapi::IterativePosPIDController::Gains rotator_ks; 
+
 
 // Drive Motor Initializations
 std::shared_ptr<okapi::Motor> frontFrontLft;

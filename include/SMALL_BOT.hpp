@@ -55,7 +55,7 @@ std::shared_ptr<pros::Optical> color_sensor;
 
 // Limit Switch Initialization
 std::shared_ptr<pros::ADIDigitalIn> limit_switch;
-
+std::shared_ptr<pros::Rotation> potentiometer;
 // Ratchet Initialization
 std::shared_ptr<okapi::Motor> ratchet;
 

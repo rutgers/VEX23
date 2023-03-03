@@ -81,9 +81,15 @@ void initialize()
 	flywheel.reset(new okapi::MotorGroup({flywheelR, flywheelL}));
 	flywheel->setBrakeMode(okapi::AbstractMotor::brakeMode::hold);
 
+
+	rotator_ks.kP = .01;
+	rotator_ks.kI = 0;
+	rotator_ks.kD = 0;
+	rotator_ks.kBias = 0;
 	// rotator
-	rotator.reset(new okapi::Motor(5, true, okapi::AbstractMotor::gearset::green, okapi::AbstractMotor::encoderUnits::rotations));
-	rotator_control = okapi::AsyncPosControllerBuilder().withMotor(rotator).build();
+	rotator.reset(new okapi::Motor(5, true, okapi::AbstractMotor::gearset::red, okapi::AbstractMotor::encoderUnits::degrees));
+	rotator_control = okapi::AsyncPosControllerBuilder().withMotor(rotator).withGains(rotator_ks).build();
+	rotator_control->setMaxVelocity(100);
 	rotator->setBrakeMode(okapi::AbstractMotor::brakeMode::hold);
 
 	// elevator
@@ -107,7 +113,9 @@ void initialize()
 
 
 	// IMU
-	// imu.reset(new pros::Imu(15));
+	imu.reset(new pros::Imu(15));
+	// calibrate imu
+	imu->reset(true);
 
 }
 
@@ -324,11 +332,13 @@ void opcontrol()
 	bool stop_rotator = true;
 	double center_error = 0;
 	double center_val = .5;
+	double imu_angle = imu->get_rotation();
+	double rotator_target = rotator->getPosition();
 	while (true)
 	{
-		//read_from_jetson();
+		read_from_jetson();
 		//pros::c::optical_rgb_s_t color = color_sensor->get_rgb();
-		master->print(0, 0, "%f %f\n", xmin, xmax);
+		//master->print(0, 0, "%f %f\n", xmin, xmax);
 
 		// Drive Mechanics
 
@@ -363,6 +373,8 @@ void opcontrol()
 		// if(master->get_digital(DIGITAL_B)) {
 		// 	move_roller(drive_lft, drive_rt, color_sensor, intake, master, COLOR_SIDE);
 		// }
+
+
 
 		//intake controls
 		if (master->get_digital(DIGITAL_L2)) {
@@ -401,47 +413,81 @@ void opcontrol()
 			piston->set_value(true);
 		}
 
+		// else{
+		// 	elevator->moveVoltage(0);
+		// }
+
+		//camera code
+
+
+
+
+
+		
 		//elevator controls
 		if (master->get_digital(DIGITAL_UP) || partner->get_digital(DIGITAL_UP)) {
 			//elevator->moveVoltage(12000);
 			elevator_control->setTarget(1); //takes a number of rotations (if your motor units are rotations)
-			stop_rotator = true;
+			stop_rotator = false;
 		}
 		else if(master->get_digital(DIGITAL_DOWN) || partner->get_digital(DIGITAL_DOWN)){
 			//elevator->moveVoltage(-12000);
 			//resets elevator back down and to center position (NEEDS ROBOT TO START CENTERED DOWN)
 			rotator_control->setTarget(0);
 			elevator_control->setTarget(0);
-			stop_rotator = false;
+			stop_rotator = true;
 		}
-		// else{
-		// 	elevator->moveVoltage(0);
-		// }
+		
+		
+		
+		double new_imu_angle = imu->get_rotation();
+		double imu_delta = new_imu_angle - imu_angle;
+		imu_angle = new_imu_angle;
+		
+		rotator_target = rotator_target - imu_delta;
 
-		//camera code
-		if((master->get_digital(DIGITAL_X) && detected) || (partner->get_digital(DIGITAL_UP) && detected)) {
-			//printf("%f %f %f %f\n", xmin, xmax, ymin, ymax);
+		if(!stop_rotator) {
+			if((master->get_digital(DIGITAL_X))) {
+				if(detected) {
+					center_error = (xmax - xmin)/2+xmin;
+					center_error = -(center_val - center_error)/.5;
+					double DEGREE_SCALE = 20;
+					double degree_offset = center_error*DEGREE_SCALE;
+					rotator_target = rotator->getPosition()+degree_offset;
+				}
+			} else {
+				double degree_move_speed = 1;
+				if (master->get_digital(DIGITAL_LEFT)) {
+					rotator_target -= degree_move_speed;
+				}
+				else if (master->get_digital(DIGITAL_RIGHT)) {
+					rotator_target += degree_move_speed;
+				}
+			}
+		}
+
+		double curr_pos = rotator->getPosition();
+		if(detected) {
 			center_error = (xmax - xmin)/2+xmin;
-			center_error = -(center_val - center_error);
-			rotator->moveVoltage(6000*center_error);
-			master->print(0,0,"%f\n", center_error);
-		} else{
-			//if not using camera code then let driver manually control rotator
-			if ((master->get_digital(DIGITAL_LEFT) && stop_rotator) || (partner->get_digital(DIGITAL_LEFT) && stop_rotator)) {
-				rotator->moveVoltage(-7000);
-			}
-			else if ((master->get_digital(DIGITAL_RIGHT) && stop_rotator) || (partner->get_digital(DIGITAL_RIGHT) && stop_rotator)) {
-				rotator->moveVoltage(7000);
-			}
-			else if (stop_rotator){
-				rotator->moveVoltage(0);
-			}
+			center_error = -(center_val - center_error)/.5;
+			
+			master->print(0,0,"%1.3f %3.1f %3.1f\n", center_error, rotator_target, curr_pos);
+		}
+		else {
+			master->print(0,0,"NONE %3.1f %3.1f\n", rotator_target, curr_pos);
 		}
 
-		pros::delay(20);
+		if(!stop_rotator) {
+			rotator_control->setTarget(rotator_target);
+		}
+		else {
+			rotator_control->setTarget(0);
+		}
+
+		pros::delay(10);
 		if (delay > 0)
 		{
-			delay = delay - 20;
+			delay = delay - 10;
 		}
 	}
 }

@@ -83,6 +83,7 @@ void initialize()
 	catapult.reset(new okapi::Motor(1, false, okapi::AbstractMotor::gearset::red, okapi::AbstractMotor::encoderUnits::rotations));
 	// catapult->setBrakeMode(okapi::AbstractMotor::brakeMode::hold);
 	catapult_control = okapi::AsyncPosControllerBuilder().withMotor(catapult).build();
+	potentiometer.reset(new pros::Rotation(7));
 
 	// Controller Initialization
 	master.reset(new pros::Controller(pros::E_CONTROLLER_MASTER));
@@ -97,7 +98,7 @@ void initialize()
 	// Pneumatics
 	piston.reset(new pros::ADIDigitalOut('A', true));	// back lift piston
 
-	endgame.reset(new pros::ADIDigitalOut('C', true));	// back lift piston
+	endgame.reset(new pros::ADIDigitalOut('C', false));	// back lift piston
 
 	// IMU
 	imu.reset(new pros::Imu(15));
@@ -427,7 +428,24 @@ void opcontrol()
 			}
 		}
 
-		if (!limit_switch->get_value() && !first_launch) 
+		// old limit switch launch code
+
+		// if (!limit_switch->get_value() && !first_launch) 
+		// {
+		// 	intake_speed = 0;
+		// 	catapult->moveVoltage(CATAPULT_SPEED);
+		// }
+		// else {
+		// 	if(master->get_digital(DIGITAL_R2)) {
+		// 		first_launch = false;
+		// 		catapult->moveVoltage(CATAPULT_SPEED);
+		// 	}
+		// 	else {
+		// 		catapult->moveVoltage(0);
+		// 	}
+		// }
+		master->print(0,0,"%f\n", potentiometer->get_position()/100.0);	
+		if ((potentiometer->get_position()/100.0 > 110.5) && !first_launch) 
 		{
 			intake_speed = 0;
 			catapult->moveVoltage(CATAPULT_SPEED);
@@ -442,6 +460,16 @@ void opcontrol()
 			}
 		}
 
+
+// void autonomous() {    potentiometer example 
+//   pros::ADIAnalogIn sensor (POTENTIOMETER_PORT);
+//   pros::Motor motor (MOTOR_PORT);
+//   //while the potentiometer is not at its maximum position
+//   while (sensor.get_value() < 4095) {
+//     motor = 127;
+//     pros::delay(50);
+//   }
+// }
 		intake->moveVoltage(intake_speed);
 
 		if(master->get_digital(DIGITAL_X)) {
@@ -473,4 +501,4 @@ void opcontrol()
 			endgame->set_value(false);
 		}
 	}
-}
+} 	

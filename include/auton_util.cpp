@@ -104,7 +104,7 @@ bool read_from_jetson()
  
     if (strcmp(data_received, previous_data_received) != 0)
     {
-		//printf(data_received);
+		//printf("%s\n",data_received);
         parsed_data_received = str_split(data_received, '_');
         //printf(parsed_data_received[1]);
         
